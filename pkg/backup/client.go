@@ -284,6 +284,8 @@ func (bc *Client) BackupRanges(
 	rate uint64,
 	concurrency uint32,
 	updateCh chan<- struct{},
+	isRawKv bool,
+	cf string,
 ) error {
 	start := time.Now()
 	defer func() {
@@ -297,7 +299,7 @@ func (bc *Client) BackupRanges(
 	go func() {
 		for _, r := range ranges {
 			err := bc.backupRange(
-				ctx, r.StartKey, r.EndKey, lastBackupTS, backupTS, rate, concurrency, updateCh)
+				ctx, r.StartKey, r.EndKey, lastBackupTS, backupTS, rate, concurrency, updateCh, isRawKv, cf)
 			if err != nil {
 				errCh <- err
 				return
@@ -345,6 +347,8 @@ func (bc *Client) backupRange(
 	rateMBs uint64,
 	concurrency uint32,
 	updateCh chan<- struct{},
+	isRawKv bool,
+	cf string,
 ) (err error) {
 	start := time.Now()
 	defer func() {
@@ -382,6 +386,8 @@ func (bc *Client) backupRange(
 		StorageBackend: bc.backend,
 		RateLimit:      rateLimit,
 		Concurrency:    concurrency,
+		IsRawKv:        isRawKv,
+		Cf:             cf,
 	}
 	push := newPushDown(ctx, bc.mgr, len(allStores))
 
@@ -403,9 +409,19 @@ func (bc *Client) backupRange(
 
 	bc.backupMeta.StartVersion = lastBackupTS
 	bc.backupMeta.EndVersion = backupTS
-	log.Info("backup time range",
-		zap.Reflect("StartVersion", lastBackupTS),
-		zap.Reflect("EndVersion", backupTS))
+	bc.backupMeta.IsRawKv = isRawKv
+	if bc.backupMeta.IsRawKv {
+		bc.backupMeta.RawRanges = append(bc.backupMeta.RawRanges,
+			&backup.RawRange{StartKey: startKey, EndKey: endKey, Cf: cf})
+		log.Info("backup raw ranges",
+			zap.ByteString("startKey", startKey),
+			zap.ByteString("endKey", endKey),
+			zap.String("cf", cf))
+	} else {
+		log.Info("backup time range",
+			zap.Reflect("StartVersion", backupTS),
+			zap.Reflect("EndVersion", backupTS))
+	}
 
 	results.tree.Ascend(func(i btree.Item) bool {
 		r := i.(*Range)
