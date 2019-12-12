@@ -115,7 +115,7 @@ func (rc *Client) InitBackupMeta(backupMeta *backup.BackupMeta, backend *backup.
 
 	metaClient := restore_util.NewClient(rc.pdClient)
 	importClient := NewImportClient(metaClient)
-	rc.fileImporter = NewFileImporter(rc.ctx, metaClient, importClient, backend, rc.rateLimit)
+	rc.fileImporter = NewFileImporter(rc.ctx, metaClient, importClient, backend, rc.rateLimit, backupMeta.IsRawKv)
 	return nil
 }
 
@@ -448,7 +448,11 @@ func (rc *Client) RestoreRaw(startKey []byte, endKey []byte, files []*backup.Fil
 	wg := new(sync.WaitGroup)
 	defer close(errCh)
 
-	// TODO: Fix file borders
+	err := rc.fileImporter.SetRawRange(startKey, endKey)
+	if err != nil {
+
+		return errors.Trace(err)
+	}
 
 	emptyRules := &restore_util.RewriteRules{}
 	for _, file := range files {
