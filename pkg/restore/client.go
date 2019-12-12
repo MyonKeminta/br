@@ -484,6 +484,7 @@ func (rc *Client) RestoreRaw(startKey []byte, endKey []byte, files []*backup.Fil
 		zap.String("startKey", hex.EncodeToString(startKey)),
 		zap.String("endKey", hex.EncodeToString(endKey)),
 	)
+	return nil
 }
 
 //SwitchToImportMode switch tikv cluster to import mode

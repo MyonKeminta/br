@@ -377,7 +377,7 @@ func newRawRestoreCommand() *cobra.Command {
 			if err != nil {
 				return errors.Trace(err)
 			}
-			err = client.SwitchToImportMode(ctx)
+			err = client.SwitchToImportModeIfOffline(ctx)
 			if err != nil {
 				return errors.Trace(err)
 			}
@@ -385,7 +385,7 @@ func newRawRestoreCommand() *cobra.Command {
 			if err != nil {
 				return errors.Trace(err)
 			}
-			err = client.SwitchToNormalMode(ctx)
+			err = client.SwitchToNormalModeIfOffline(ctx)
 			if err != nil {
 				return errors.Trace(err)
 			}
@@ -397,10 +397,10 @@ func newRawRestoreCommand() *cobra.Command {
 			//	ctx, "Checksum", int64(len(newTables)), !HasLogFile())
 			//err = client.ValidateChecksum(
 			//	ctx, mgr.GetTiKV().GetClient(), []*utils.Table{table}, newTables, updateCh)
-			if err != nil {
-				return err
-			}
-			close(updateCh)
+			//if err != nil {
+			//	return err
+			//}
+			//close(updateCh)
 
 			return nil
 		},
