@@ -59,7 +59,7 @@ func runBackup(flagSet *pflag.FlagSet, cmdName string, bc backupContext) error {
 	ctx, cancel := context.WithCancel(defaultContext)
 	defer cancel()
 
-	mgr, err := GetDefaultMgr()
+	mgr, err := GetDefaultMgr(bc.isRawKv)
 	if err != nil {
 		return err
 	}

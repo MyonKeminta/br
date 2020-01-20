@@ -156,7 +156,7 @@ func HasLogFile() bool {
 }
 
 // GetDefaultMgr returns the default mgr for command line usage.
-func GetDefaultMgr() (*conn.Mgr, error) {
+func GetDefaultMgr(isRawKv bool) (*conn.Mgr, error) {
 	if pdAddress == "" {
 		return nil, errors.New("pd address can not be empty")
 	}
@@ -171,7 +171,7 @@ func GetDefaultMgr() (*conn.Mgr, error) {
 		if err != nil {
 			return
 		}
-		defaultMgr, err = conn.NewMgr(defaultContext, pdAddress, storage.(tikv.Storage))
+		defaultMgr, err = conn.NewMgr(defaultContext, pdAddress, storage.(tikv.Storage), isRawKv)
 	})
 	if err != nil {
 		return nil, err

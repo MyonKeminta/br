@@ -295,12 +295,12 @@ func (importer *FileImporter) downloadSST(
 		)
 		return nil, true, errRewriteRuleNotFound
 	}
-  rule := import_sstpb.RewriteRule{
+	rule := import_sstpb.RewriteRule{
 		OldKeyPrefix: encodeKeyPrefix(regionRule.GetOldKeyPrefix()),
 		NewKeyPrefix: encodeKeyPrefix(regionRule.GetNewKeyPrefix()),
 	}
 	sstMeta := getSSTMetaFromFile(id, file, regionInfo.Region, &rule)
-  sstMeta.RegionId = regionInfo.Region.GetId()
+	sstMeta.RegionId = regionInfo.Region.GetId()
 	sstMeta.RegionEpoch = regionInfo.Region.GetRegionEpoch()
 	// For raw kv mode, cut the SST file's range to fit in the restoring range.
 	if importer.isRawKvMode {

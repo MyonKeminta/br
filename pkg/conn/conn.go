@@ -87,7 +87,7 @@ func pdRequest(
 }
 
 // NewMgr creates a new Mgr.
-func NewMgr(ctx context.Context, pdAddrs string, storage tikv.Storage) (*Mgr, error) {
+func NewMgr(ctx context.Context, pdAddrs string, storage tikv.Storage, isRawKv bool) (*Mgr, error) {
 	addrs := strings.Split(pdAddrs, ",")
 
 	failure := errors.Errorf("pd address (%s) has wrong format", pdAddrs)
@@ -130,9 +130,12 @@ func NewMgr(ctx context.Context, pdAddrs string, storage tikv.Storage) (*Mgr, er
 		return nil, errors.Errorf("tikv cluster not health %+v", stores)
 	}
 
-	dom, err := session.BootstrapSession(storage)
-	if err != nil {
-		return nil, errors.Trace(err)
+	var dom *domain.Domain
+	if !isRawKv {
+		dom, err = session.BootstrapSession(storage)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 
 	mgr := &Mgr{
@@ -348,7 +351,9 @@ func (mgr *Mgr) Close() {
 
 	// Gracefully shutdown domain so it does not affect other TiDB DDL.
 	// Must close domain before closing storage, otherwise it gets stuck forever.
-	mgr.dom.Close()
+	if mgr.dom != nil {
+		mgr.dom.Close()
+	}
 
 	atomic.StoreUint32(&tikv.ShuttingDown, 1)
 	mgr.storage.Close()

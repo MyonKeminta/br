@@ -75,7 +75,7 @@ func runRestore(flagSet *flag.FlagSet, cmdName, dbName, tableName string) error 
 	ctx, cancel := context.WithCancel(GetDefaultContext())
 	defer cancel()
 
-	mgr, err := GetDefaultMgr()
+	mgr, err := GetDefaultMgr(false)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func runRawRestore(flagSet *flag.FlagSet, startKey, endKey []byte, cf string) er
 	ctx, cancel := context.WithCancel(GetDefaultContext())
 	defer cancel()
 
-	mgr, err := GetDefaultMgr()
+	mgr, err := GetDefaultMgr(true)
 	if err != nil {
 		return err
 	}
