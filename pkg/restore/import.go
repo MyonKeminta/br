@@ -183,7 +183,16 @@ func (importer *FileImporter) SetRawRange(startKey, endKey []byte) error {
 func (importer *FileImporter) Import(file *backup.File, rewriteRules *restore_util.RewriteRules) error {
 	log.Debug("import file", zap.Stringer("file", file))
 	// Rewrite the start key and end key of file to scan regions
-	startKey, endKey, err := rewriteFileKeys(file, rewriteRules)
+	var (
+		startKey []byte
+		endKey   []byte
+		err      error
+	)
+	if importer.isRawKvMode {
+		startKey, endKey = importer.rawStartKey, importer.rawEndKey
+	} else {
+		startKey, endKey, err = rewriteFileKeys(file, rewriteRules)
+	}
 	if err != nil {
 		return err
 	}
@@ -280,30 +289,43 @@ func (importer *FileImporter) downloadSST(
 	if err != nil {
 		return nil, true, errors.Trace(err)
 	}
-	// Assume one region reflects to one rewrite rule
-	_, key, err := codec.DecodeBytes(regionInfo.Region.GetStartKey())
-	if err != nil {
-		return nil, true, err
-	}
-	regionRule := matchNewPrefix(key, rewriteRules)
-	if regionRule == nil {
-		log.Debug("cannot find rewrite rule, skip region",
-			zap.Stringer("region", regionInfo.Region),
-			zap.Array("tableRule", rules(rewriteRules.Table)),
-			zap.Array("dataRule", rules(rewriteRules.Data)),
-			zap.Binary("key", key),
-		)
-		return nil, true, errRewriteRuleNotFound
-	}
-	rule := import_sstpb.RewriteRule{
-		OldKeyPrefix: encodeKeyPrefix(regionRule.GetOldKeyPrefix()),
-		NewKeyPrefix: encodeKeyPrefix(regionRule.GetNewKeyPrefix()),
-	}
-	sstMeta := getSSTMetaFromFile(id, file, regionInfo.Region, &rule)
-	sstMeta.RegionId = regionInfo.Region.GetId()
-	sstMeta.RegionEpoch = regionInfo.Region.GetRegionEpoch()
-	// For raw kv mode, cut the SST file's range to fit in the restoring range.
-	if importer.isRawKvMode {
+
+	sstMeta := import_sstpb.SSTMeta{}
+	rule := import_sstpb.RewriteRule{}
+	if !importer.isRawKvMode {
+		// Assume one region reflects to one rewrite rule
+		var key []byte
+		_, key, err = codec.DecodeBytes(regionInfo.Region.GetStartKey())
+		if err != nil {
+			return nil, true, err
+		}
+		regionRule := matchNewPrefix(key, rewriteRules)
+		if regionRule == nil {
+			log.Debug("cannot find rewrite rule, skip region",
+				zap.Stringer("region", regionInfo.Region),
+				zap.Array("tableRule", rules(rewriteRules.Table)),
+				zap.Array("dataRule", rules(rewriteRules.Data)),
+				zap.Binary("key", key),
+			)
+			return nil, true, errRewriteRuleNotFound
+		}
+		rule = import_sstpb.RewriteRule{
+			OldKeyPrefix: encodeKeyPrefix(regionRule.GetOldKeyPrefix()),
+			NewKeyPrefix: encodeKeyPrefix(regionRule.GetNewKeyPrefix()),
+		}
+		sstMeta = getSSTMetaFromFile(id, file, regionInfo.Region, &rule)
+		sstMeta.RegionId = regionInfo.Region.GetId()
+		sstMeta.RegionEpoch = regionInfo.Region.GetRegionEpoch()
+	} else {
+		sstMeta.Uuid = id
+		sstMeta.CfName = file.Cf
+		sstMeta.Range = &import_sstpb.Range{
+			Start: regionInfo.Region.StartKey,
+			End:   regionInfo.Region.EndKey,
+		}
+		sstMeta.RegionId = regionInfo.Region.GetId()
+		sstMeta.RegionEpoch = regionInfo.Region.GetRegionEpoch()
+		// For raw kv mode, cut the SST file's range to fit in the restoring range.
 		if bytes.Compare(importer.rawStartKey, sstMeta.Range.GetStart()) > 0 {
 			sstMeta.Range.Start = importer.rawStartKey
 		}
@@ -336,8 +358,13 @@ func (importer *FileImporter) downloadSST(
 			return &sstMeta, true, nil
 		}
 	}
-	sstMeta.Range.Start = truncateTS(resp.Range.GetStart())
-	sstMeta.Range.End = truncateTS(resp.Range.GetEnd())
+	if !importer.isRawKvMode {
+		sstMeta.Range.Start = truncateTS(resp.Range.GetStart())
+		sstMeta.Range.End = truncateTS(resp.Range.GetEnd())
+	} else {
+		sstMeta.Range.Start = resp.Range.GetStart()
+		sstMeta.Range.End = resp.Range.GetEnd()
+	}
 	return &sstMeta, false, nil
 }
 

@@ -156,11 +156,16 @@ func (rc *Client) GetFilesInRawRange(startKey []byte, endKey []byte, cf string) 
 				continue
 			}
 
-			if len(file.EndKey) > 0 && bytes.Compare(file.EndKey, startKey) < 0 {
+			fileEnd := make([]byte, len(file.EndKey)*2)
+			hex.Encode(fileEnd, file.EndKey)
+			fileSt := make([]byte, len(file.StartKey)*2)
+			hex.Encode(fileSt, file.StartKey)
+
+			if len(fileEnd) > 0 && bytes.Compare(fileEnd, startKey) < 0 {
 				// The file is before the range to be restored.
 				continue
 			}
-			if len(endKey) > 0 && bytes.Compare(endKey, file.StartKey) >= 0 {
+			if len(endKey) > 0 && bytes.Compare(endKey, fileSt) >= 0 {
 				// The file is after the range to be restored.
 				// The specified endKey is exclusive, so when it equals to a file's startKey, the file is still skipped.
 				continue

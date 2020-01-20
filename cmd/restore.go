@@ -256,7 +256,7 @@ func runRawRestore(flagSet *flag.FlagSet, startKey, endKey []byte, cf string) er
 	// TODO: How to show progress?
 	updateCh := utils.StartProgress(
 		ctx,
-		"Table Restore",
+		"Raw Restore",
 		// Split/Scatter + Download/Ingest
 		int64(len(ranges)+len(files)),
 		!HasLogFile())
